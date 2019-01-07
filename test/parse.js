@@ -1,242 +1,204 @@
 
 var assert = require('assert');
 var parse = require('../').parse;
+var build = require('../').build;
 var multiline = require('multiline');
 
-function isEmpty(o){
-  for(var i in o){
-    if(o.hasOwnProperty(i)){
-      return false;
-    }
-  }
-  return true;
+function parseFixture(string) {
+  var intro = multiline(function () {
+/*
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+*/
+  });
+  return parse(intro + string + '</plist>');
 }
 
-describe('plist', function () {
+describe('parse()', function () {
 
-  describe('parse()', function () {
-
-    it('should parse a minimal <string> node into a String', function () {
-      var parsed = parse('<plist><string>Hello World!</string></plist>');
-      assert.strictEqual(parsed, 'Hello World!');
+  describe('boolean', function () {
+    it('should parse a <true> node into a Boolean `true` value', function () {
+      var parsed = parseFixture('<true/>');
+      assert.strictEqual(parsed, true);
     });
 
-    it('should parse a full XML <string> node into a String', function () {
-      var xml = multiline(function () {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<string>gray</string>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert.strictEqual(parsed, 'gray');
+    it('should parse a <false> node into a Boolean `false` value', function () {
+      var parsed = parseFixture('<false/>');
+      assert.strictEqual(parsed, false);
     });
+  });
 
-    it('should parse an <integer> node into a Number', function () {
-      var xml = multiline(function () {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <integer>14</integer>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert.strictEqual(parsed, 14);
-    });
-
-    it('should parse a <real> node into a Number', function () {
-      var xml = multiline(function () {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <real>3.14</real>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert.strictEqual(parsed, 3.14);
-    });
-
-    it('should parse an empty <key/> in a dictionary', function() {
-      var xml = multiline(function() {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key />
-    <string />
-  </dict>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert.ok(isEmpty(parsed));
-    });
-
-    it('should parse an empty <string/> in a dictionary', function() {
-      var xml = multiline(function() {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>foo</key>
-    <string/>
-  </dict>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert.deepEqual(parsed, {foo: ''});
-    });
-
-    it('should parse an empty <key></key> in a dictionary', function() {
-      var xml = multiline(function() {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key></key>
-    <string />
-  </dict>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert.ok(isEmpty(parsed));
-    });
-
-    it('should prevent errors when empty <key></key> in a dictionary', function() {
-      var xml = multiline(function() {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key></key>
-    <string>should never be added</string>
-    <key>foo</key>
-    <string>bar</string>
-  </dict>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert.deepEqual(parsed, {foo: 'bar'});
-    });
-
-    it('should parse an empty <key></key> and <string></string> in dictionary with more data', function() {
-      var xml = multiline(function() {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key></key>
-    <string></string>
-    <key>UIRequiredDeviceCapabilities</key>
-    <array>
-      <string>armv7</string>
-    </array>
-  </dict>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert.deepEqual(parsed, {
-        'UIRequiredDeviceCapabilities': [
-          'armv7'
-        ]
+  describe('integer', function () {
+    it('should throw an Error when parsing an empty integer', function () {
+      assert.throws(function () {
+        parseFixture('<integer/>');
       });
     });
 
-    it('should parse a <date> node into a Date', function () {
-      var xml = multiline(function () {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <date>2010-02-08T21:41:23Z</date>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert(parsed instanceof Date);
-      assert.strictEqual(parsed.getTime(), 1265665283000);
+    it('should parse an <integer> node into a Number', function () {
+      var parsed = parseFixture('<integer>14</integer>');
+      assert.strictEqual(parsed, 14);
+    });
+  });
+
+  describe('real', function () {
+    it('should throw an Error when parsing an empty real', function () {
+      assert.throws(function () {
+        parseFixture('<real/>');
+      });
+    });
+
+    it('should parse a <real> node into a Number', function () {
+      var parsed = parseFixture('<real>3.14</real>');
+      assert.strictEqual(parsed, 3.14);
+    });
+  });
+
+  describe('string', function () {
+    it('should parse a self closing string', function () {
+      var parsed = parseFixture('<string/>');
+      assert.strictEqual(parsed, '');
+    });
+
+    it('should parse an empty string', function () {
+      var parsed = parseFixture('<string></string>');
+      assert.strictEqual(parsed, '');
+    });
+
+    it('should parse the string contents', function () {
+      var parsed = parseFixture('<string>test</string>');
+      assert.strictEqual(parsed, 'test');
+    });
+
+    it('should parse a string with comments', function () {
+      var parsed = parseFixture('<string>a<!-- comment --> string</string>');
+      assert.strictEqual(parsed, 'a string');
+    });
+    
+    it('should parse a string with surrogate Unicode characters', function () {
+      var parsed = parseFixture('<string>勺卉善爨</string>');
+      assert.strictEqual(parsed, '勺卉善爨');
+    });
+  });
+
+  describe('data', function () {
+    it('should parse an empty data tag into an empty Buffer', function () {
+      var parsed = parseFixture('<data/>');
+      assert(Buffer.isBuffer(parsed));
+      assert.strictEqual(parsed.toString('utf-8'), '');
     });
 
     it('should parse a <data> node into a Buffer', function () {
-      var xml = multiline(function () {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <data>4pyTIMOgIGxhIG1vZGU=</data>
-</plist>
-*/});
-      var parsed = parse(xml);
+      var parsed = parseFixture('<data>4pyTIMOgIGxhIG1vZGU=</data>');
       assert(Buffer.isBuffer(parsed));
       assert.strictEqual(parsed.toString('utf8'), '✓ à la mode');
     });
 
     it('should parse a <data> node with newlines into a Buffer', function () {
-      var xml = multiline(function () {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <data>4pyTIMOgIGxhIG
+      var xml = multiline(function () {
+/*
+<data>4pyTIMOgIGxhIG
 
 
-  1v
+1v
 
-  ZG
-  U=</data>
-</plist>
-*/});
-      var parsed = parse(xml);
+ZG
+U=</data>
+*/
+      });
+      var parsed = parseFixture(xml);
       assert(Buffer.isBuffer(parsed));
       assert.strictEqual(parsed.toString('utf8'), '✓ à la mode');
     });
+  });
 
-    it('should parse a <true> node into a Boolean `true` value', function () {
-      var xml = multiline(function () {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <true/>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert.strictEqual(parsed, true);
+  describe('date', function () {
+    it('should throw an error when parsing an empty date', function () {
+      assert.throws(function () {
+        parseFixture('<date/>')
+      });
     });
 
-    it('should parse a <false> node into a Boolean `false` value', function () {
-      var xml = multiline(function () {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <false/>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert.strictEqual(parsed, false);
+    it('should parse a <date> node into a Date', function () {
+      var parsed = parseFixture('<date>2010-02-08T21:41:23Z</date>');
+      assert(parsed instanceof Date);
+      assert.strictEqual(parsed.getTime(), 1265665283000);
+    });
+  });
+
+  describe('array', function () {
+    it('should parse an empty array', function () {
+      var parsed = parseFixture('<array/>');
+      assert.deepEqual(parsed, []);
     });
 
-    it('should parse an <array> node into an Array', function () {
-      var xml = multiline(function () {/*
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <array>
-    <dict>
-      <key>duration</key>
-      <real>5555.0495000000001</real>
-      <key>start</key>
-      <real>0.0</real>
-    </dict>
-  </array>
-</plist>
-*/});
-      var parsed = parse(xml);
-      assert.deepEqual(parsed, [
-        {
-          duration: 5555.0495,
-          start: 0
-        }
-      ]);
+    it('should parse an array with one element', function () {
+      var parsed = parseFixture('<array><true/></array>');
+      assert.deepEqual(parsed, [true]);
     });
 
+    it('should parse an array with multiple elements', function () {
+      var parsed = parseFixture(
+        '<array><string>1</string><string>2</string></array>'
+      );
+      assert.deepEqual(parsed, ['1', '2']);
+    });
+
+    it('should parse empty elements inside an array', function () {
+      var parsed = parseFixture('<array><string/><false/></array>');
+      assert.deepEqual(parsed, ['', false]);
+    });
+  });
+
+  describe('dict', function () {
+    it('should throw if key is missing', function () {
+      assert.throws(function () {
+        parseFixture('<dict><string>x</string></dict>');
+      });
+    });
+
+    it('should throw if two keys follow each other', function () {
+      assert.throws(function () {
+        parseFixture('<dict><key>a</key><key>b</key></dict>');
+      });
+    });
+
+    it('should throw if value is missing', function () {
+      assert.throws(function () {
+        parseFixture('<dict><key>a</key></dict>');
+      });
+    });
+
+    it('should parse an empty key', function () {
+      var parsed = parseFixture('<dict><key/><string>1</string></dict>');
+      assert.deepEqual(parsed, { '': '1' });
+    });
+
+    it('should parse an empty value', function () {
+      var parsed = parseFixture('<dict><key>a</key><string/></dict>');
+      assert.deepEqual(parsed, { 'a': '' });
+    });
+
+    it('should parse multiple key/value pairs', function () {
+      var parsed = parseFixture(
+        '<dict><key>a</key><true/><key>b</key><false/></dict>'
+      );
+      assert.deepEqual(parsed, { a: true, b: false });
+    });
+
+    it('should parse nested data structures', function () {
+      var parsed = parseFixture(
+        '<dict><key>a</key><dict><key>a1</key><true/></dict></dict>'
+      );
+      assert.deepEqual(parsed, { a: { a1: true } });
+    });
+  });
+
+  describe('integration', function () {
     it('should parse a plist file with XML comments', function () {
-      var xml = multiline(function () {/*
+      var xml = multiline(function () {
+/*
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -261,7 +223,8 @@ describe('plist', function () {
     <string>9.0</string>
   </dict>
 </plist>
-*/});
+*/
+      });
       var parsed = parse(xml);
       assert.deepEqual(parsed, {
         CFBundleName: 'Emacs',
@@ -273,7 +236,8 @@ describe('plist', function () {
     });
 
     it('should parse a plist file with CDATA content', function () {
-      var xml = multiline(function () {/*
+      var xml = multiline(function () {
+/*
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -319,7 +283,8 @@ int main(int argc, char *argv[])
 	</dict>
 </dict>
 </plist>
-*/});
+*/
+      });
       var parsed = parse(xml);
       assert.deepEqual(parsed, { OptionsLabel: 'Product',
         PopupMenu:
@@ -333,7 +298,8 @@ int main(int argc, char *argv[])
     });
 
     it('should parse an example "Cordova.plist" file', function () {
-      var xml = multiline(function () {/*
+      var xml = multiline(function () {
+/*
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
@@ -421,7 +387,8 @@ int main(int argc, char *argv[])
   </dict>
 </dict>
 </plist>
-*/});
+*/
+      });
       var parsed = parse(xml);
       assert.deepEqual(parsed, {
         UIWebViewBounce: true,
@@ -458,7 +425,8 @@ int main(int argc, char *argv[])
     });
 
     it('should parse an example "Xcode-Info.plist" file', function () {
-      var xml = multiline(function () {/*
+      var xml = multiline(function () {
+/*
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -508,7 +476,8 @@ int main(int argc, char *argv[])
 	<true/>
 </dict>
 </plist>
-*/});
+*/
+      });
       var parsed = parse(xml);
       assert.deepEqual(parsed, {
         CFBundleDevelopmentRegion: 'en',
@@ -536,7 +505,5 @@ int main(int argc, char *argv[])
         CFBundleAllowMixedLocalizations: true
       });
     });
-
   });
-
 });

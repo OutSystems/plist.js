@@ -114,6 +114,21 @@ describe('plist', function () {
 */}));
     });
 
+    it('should create plist with surrogate unicode characters', function () {
+      var source = { CFBundleDisplayName: '勺卉善爨' };
+      var xml = build(source);
+      assert.strictEqual(xml, multiline(function () {/*
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CFBundleDisplayName</key>
+    <string>勺卉善爨</string>
+  </dict>
+</plist>
+*/}))
+    });
+
     it('should properly encode an empty string', function () {
       var xml = build({ a: '' });
       assert.strictEqual(xml, multiline(function () {/*
